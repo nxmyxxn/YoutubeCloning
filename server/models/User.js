@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const bcryptjs = require('bcryptjs');
 const saltRounds = 10;
 const jwt = require('jsonwebtoken');
 const moment = require("moment");
@@ -41,10 +41,10 @@ userSchema.pre('save', function( next ) {
     
     if(user.isModified('password')){    
         // console.log('password changed')
-        bcrypt.genSalt(saltRounds, function(err, salt){
+        bcryptjs.genSalt(saltRounds, function(err, salt){
             if(err) return next(err);
     
-            bcrypt.hash(user.password, salt, function(err, hash){
+            bcryptjs.hash(user.password, salt, function(err, hash){
                 if(err) return next(err);
                 user.password = hash 
                 next()
@@ -56,7 +56,7 @@ userSchema.pre('save', function( next ) {
 });
 
 userSchema.methods.comparePassword = function(plainPassword,cb){
-    bcrypt.compare(plainPassword, this.password, function(err, isMatch){
+    bcryptjs.compare(plainPassword, this.password, function(err, isMatch){
         if (err) return cb(err);
         cb(null, isMatch)
     })

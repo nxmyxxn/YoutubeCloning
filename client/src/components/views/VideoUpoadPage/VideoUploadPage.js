@@ -4,6 +4,7 @@ import Dropzone from 'react-dropzone'
 import { use } from 'react';
 //import { response } from 'express';
 import axios from 'axios';
+import { useSelector } from 'react-redux';
 
 const {TextArea}=Input;
 const {Title} = Typography;
@@ -20,12 +21,15 @@ const CategoryOptions = [
     {value: 3, label: "Pets & Animals"},
 ]
 
-function VideoUploadPage(){
-    
+function VideoUploadPage(props){
+    const user = useSelector(state => state.user);
     const [VideoTitle, setVideoTitle] = useState("")
     const [Description, setDescription] = useState("")
     const [Private, setPrivate] = useState(0)
     const [Category, setCategory] = useState("Film & Animation")
+    const [FilePath, setFilePath] = useState("")
+    const [Duration, setDuration] = useState("")
+    const [ThumbnailPath, setThumbnailPath] = useState("") 
 
     const onTitleChange = (e) => {
         console.log(e.currentTarget)
@@ -47,7 +51,7 @@ function VideoUploadPage(){
     const onDrop = (files) => {
         let formdata = new FormData();
         const config = {
-            header : {'content-type':'multitype/form-data'}
+            header : {'content-type':'multipart/form-data'}
         }
         formdata.append("file", files[0])
 
@@ -55,11 +59,59 @@ function VideoUploadPage(){
             .then (response => {
                 if(response.data.success){
                     console.log(response.data)
+
+                    let variable = {
+                        url:response.data.url,
+                        fileName: response.data.fileName
+                    }
+
+                    setFilePath(response.data.url)
+
+                    axios.post('/api/video/thumbnail', variable)
+                        .then(response => {
+                            if(response.data.success){
+                                console.log(response.data)
+
+                                setDuration(response.data.fileDuration)
+                                setThumbnailPath(response.data.url)
+
+                            }else{
+                                alert('fialed to make thumbnail')
+                            }
+                        })
                 }
                 else{
                     alert("failed to upload the video")
                 }
             })
+    }
+
+    const onSubmit = (e) => {
+        e.preventDefault();
+
+        const variables = {
+            writer: user.userData._id,
+            title:VideoTitle,
+            decriptionos:Description,
+            privacy:Private,
+            filePath:FilePath,
+            category:Category,
+            duration:Duration,
+            thumbnail:ThumbnailPath,
+        }
+
+        axios.post('/api/video/uploadVideo', variables)
+        .then(response=>{
+            if(response.data.success){
+                message.success('upload succeed!')
+
+                    setTimeout(()=>{
+                        props.history.push('/')
+                    }, 3000);
+            }else{
+                alert('falied to upload video')
+            }
+        })
     }
 
     return(
@@ -69,7 +121,7 @@ function VideoUploadPage(){
                 <Title level={2}>Upload video</Title>
             </div>
             
-            <Form>
+            <Form onSubmit={onSubmit}>
                 <div style={{display:'flex', justifyContent:'space-between'}}>
                     
                     <Dropzone 
@@ -85,11 +137,13 @@ function VideoUploadPage(){
                     )}
                     </Dropzone>
 
-
                     {/*Thumbnail*/}
+                    {ThumbnailPath &&
                     <div>
-                        <img src alt />
+                        <img src={`http://localhost:5000/${ThumbnailPath}`} alt="thumbnail" />
                     </div>
+                    }
+
                 </div>
             <br/><br/>
 
@@ -121,7 +175,7 @@ function VideoUploadPage(){
             </select>
             <br/><br/>
 
-            <Button type='primary' size="large" onClick>
+            <Button type='primary' size="large" onClick={onSubmit}>
                 Submit
             </Button>
 

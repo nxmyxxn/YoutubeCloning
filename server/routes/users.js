@@ -9,6 +9,9 @@ const { auth } = require("../middleware/auth");
 //=================================
 
 router.get("/auth", auth, (req, res) => {
+
+    console.log("✅ /auth 엔드포인트 요청 들어옴");
+
     res.status(200).json({
         _id: req.user._id,
         isAdmin: req.user.role === 0 ? false : true,
@@ -35,14 +38,26 @@ router.post("/register", (req, res) => {
 
 router.post("/login", (req, res) => {
     User.findOne({ email: req.body.email }, (err, user) => {
-        if (!user)
+
+        if (err) {
+            console.error("❌ DB 조회 중 오류 발생:", err);
+            return res.status(500).json({ loginSuccess: false, message: "Server error" });
+        }
+
+        else if (!user)
             return res.json({
                 loginSuccess: false,
                 message: "Auth failed, email not found"
             });
 
         user.comparePassword(req.body.password, (err, isMatch) => {
-            if (!isMatch)
+
+            if (err) {
+                console.error("❌ 비밀번호 비교 중 오류 발생:", err);
+                return res.status(500).json({ loginSuccess: false, message: "Server error" });
+            }
+
+            else if (!isMatch)
                 return res.json({ loginSuccess: false, message: "Wrong password" });
 
             user.generateToken((err, user) => {

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { Video } = require("../models/Video");
-
 const { auth } = require("../middleware/auth");
 const multer = require("multer");
-var ffmpeg = require("fluent-ffmpeg")
+var ffmpeg = require("fluent-ffmpeg");
+const { Subscriber } = require('../models/Subscriber');
 
 // storage multer config option
 let storage = multer.diskStorage({
@@ -44,9 +44,41 @@ router.post('/uploadVideo', (req, res) => {
     //save video information 
     const video = new Video(req.body)
     // sava to MongoDB
-    video.save((err, doc)=>{
+    video.save((err, video)=>{
         if(err) return res.json({sucess:false, err})
             res.status(200).json({success:true})
+    })
+});
+
+router.get('/getVideos', (req, res) => {
+    //get videos from DB and send to client 
+    Video.find()
+        .populate('writer')
+        .exec((err, videos)=> {
+            if(err) return res.status(400).send(err);
+            res.status(200).json({success:true, videos})
+        })
+
+});
+
+router.post('/getVideoDetail', (req, res) => {
+    Video.findOne({"_id": req.body.videoId})
+    .populate("writer")
+    .exec((err, video)=>{
+        if (err) {
+            console.error("DB 조회 오류:", err);
+            return res.status(500).send(err);
+        }
+        if (!video) {
+            console.log("해당 videoId에 대한 비디오 없음"); // ✅ video가 null일 때 로그
+            return res.json({ success: false, video: null });
+        }
+        return res.status(200).json({ success: true, video });
+        // if(err) return res.status(400).sendStatus(err);
+        // res.status(200).json({success:true, video})
+
+        console.log("요청된 videoId:", req.body.videoId);
+
     })
 });
 
@@ -84,6 +116,32 @@ router.post('/thumbnail', (req, res) => {
         // %b input basename ( filename w/o extension )
         filename:'thumbnail-%b.png'
     });
+    
+});
+
+router.post('/getSubscriptionVideos', (req, res) => {
+
+    //Need to find all of the Users that I am subscribing to From Subscriber Collection 
+    
+    Subscriber.find({ 'userFrom': req.body.userFrom })
+    .exec((err, subscribers)=> {
+        if(err) return res.status(400).send(err);
+
+        let subscribedUser = [];
+
+        subscribers.map((subscriber, i)=> {
+            subscribedUser.push(subscriber.userTo)
+        })
+
+
+        //Need to Fetch all of the Videos that belong to the Users that I found in previous step. 
+        Video.find({ writer: { $in: subscribedUser }})
+            .populate('writer')
+            .exec((err, videos) => {
+                if(err) return res.status(400).send(err);
+                res.status(200).json({ success: true, videos })
+            })
+    })
     
 });
 
